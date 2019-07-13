@@ -169,22 +169,19 @@ export default {
   },
   methods: {
     // 封装ajax
-    getrequest () {
-      this.axios({
+    async getrequest () {
+      const { data, meta } = await this.axios({
         url: 'users',
         params: {
           query: this.query,
           pagenum: this.pagenum,
           pagesize: this.pagesize
         }
-      }).then(res => {
-        console.log(res.data)
-        const { data, meta } = res
-        if (meta.status === 200) {
-          this.tableData = data.users
-          this.total = data.total
-        }
       })
+      if (meta.status === 200) {
+        this.tableData = data.users
+        this.total = data.total
+      }
     },
     handleSizeChange (val) {
       console.log(`每页 ${val} 条`)
@@ -202,64 +199,56 @@ export default {
       this.getrequest()
     },
     // 删除
-    deleteUser (id) {
-      this.$confirm('确定删除吗?', '温馨提示', {
+    async deleteUser (id) {
+      await this.$confirm('确定删除吗?', '温馨提示', {
         type: 'warning'
-      }).then(() => {
-        this.axios({
-          method: 'delete',
-          url: `users/${id}`
-        }).then(res => {
-          console.log(res.data)
-          const { meta } = res
-          if (meta.status === 200) {
-            this.$message.success('删除成功')
-            if (this.tableData.length === 1 && this.pagenum > 1) {
-              this.pagenum--
-            }
-            this.getrequest()
-          }
-        })
       })
+      const { meta } = await this.axios({
+        method: 'delete',
+        url: `users/${id}`
+      })
+      if (meta.status === 200) {
+        this.$message.success('删除成功')
+        if (this.tableData.length === 1 && this.pagenum > 1) {
+          this.pagenum--
+        }
+        this.getrequest()
+      }
     },
     // 修改状态功能
-    changeState ({ id, mg_state: state }) {
-      this.axios.put(`users/${id}/state/${state}`).then(res => {
-        const { status, msg } = res.meta
-        if (status === 200) {
-          this.$message.success('修改成功')
-          this.getrequest()
-        } else {
-          this.$message.error(msg)
-        }
-      })
+    async changeState ({ id, mg_state: state }) {
+      const res = await this.axios.put(`users/${id}/state/${state}`)
+      const { status, msg } = res.meta
+      if (status === 200) {
+        this.$message.success('修改成功')
+        this.getrequest()
+      } else {
+        this.$message.error(msg)
+      }
     },
     showAddDialog () {
       this.addDialogVisible = true
     },
     // 添加功能
-    addUser () {
+    async addUser () {
       // validate 对内容进行校验
-      this.$refs.addForm.validate(valid => {
-        if (!valid) return false
-        this.axios.post('users', this.addForm).then(res => {
-          const { status } = res.meta
-          if (status === 201) {
-            // 提示消息
-            this.$message.success('添加成功')
-            // 重置表单
-            this.$refs.addForm.resetFields()
-            // 隐藏对话框
-            this.addDialogVisible = false
-            // 重新渲染
-            this.total++ // 总个数++
-            this.pagenum = Math.ceil(this.total / this.pagesize)
-            this.getrequest()
-          } else {
-            this.$message.error('添加失败')
-          }
-        })
-      })
+      await this.$refs.addForm.validate()
+      const res = await this.axios.post('users', this.addForm)
+      const { status } = res.meta
+      if (status === 201) {
+        // 提示消息
+        this.$message.success('添加成功')
+        // 重置表单
+        this.$refs.addForm.resetFields()
+        // 隐藏对话框
+        this.addDialogVisible = false
+        // 重新渲染
+        this.total++ // 总个数++
+        this.pagenum = Math.ceil(this.total / this.pagesize)
+        this.getrequest()
+      } else {
+        this.$message.error('添加失败')
+      }
     },
     // 修改框显示
     showEditDialog (user) {
@@ -267,22 +256,18 @@ export default {
       this.editForm = { ...user }
     },
     // 开始修改内容
-    editUser () {
-      this.$refs.editForm.validate(valid => {
-        if (!valid) return false
-        const { id, email, mobile } = this.editForm
-        this.axios.put(`users/${id}`, { email, mobile }).then(res => {
-          const { msg, status } = res.meta
-          if (status === 200) {
-            this.$message.success('修改成功')
-            // this.$refs.editForm.resetFields()
-            this.editDialogVisible = false
-            this.getrequest()
-          } else {
-            this.$message.error(msg)
-          }
-        })
-      })
+    async editUser () {
+      await this.$refs.editForm.validate()
+      const { id, email, mobile } = this.editForm
+      const res = await this.axios.put(`users/${id}`, { email, mobile })
+      const { msg, status } = res.meta
+      if (status === 200) {
+        this.$message.success('修改成功')
+        this.editDialogVisible = false
+        this.getrequest()
+      } else {
+        this.$message.error(msg)
+      }
     }
   }
 }

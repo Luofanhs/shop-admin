@@ -47,32 +47,27 @@ export default {
       // 用于重置表单内容
       this.$refs.form.resetFields()
     },
-    login () {
-      this.$refs.form.validate((isValid) => {
-        // 校验失败直接跳过后面的不执行
-        if (!isValid) return false
-        // 成功，就发送ajax请求
-
-        this.axios.post('http://localhost:8888/api/private/v1/login', this.form).then(res => {
-          // form表单数据也是一个对象，直接this.form
-          // 解构
-          console.log(res.data)
-          const { status, msg } = res.meta
-          if (status === 200) {
-            const token = res.data.token
-            this.$message({
-              message: '登陆成功',
-              type: 'success'
-            })
-            // token是在客户端频繁向服务端请求数据，
-            // 服务端频繁的去数据库查询用户名和密码并进行对比，判断用户名和密码正确与否，并作出相应提示
-            localStorage.setItem('token', token)
-            this.$router.push('/')
-          } else {
-            this.$message.error(msg)
-          }
-        })
-      })
+    async login () {
+      try {
+        await this.$refs.form.validate()
+        const { meta, data } = await this.axios.post('login', this.form)
+        // form表单数据也是一个对象，直接this.form
+        // 解构
+        if (meta.status === 200) {
+          this.$message({
+            message: '登陆成功',
+            type: 'success'
+          })
+          // token是在客户端频繁向服务端请求数据，
+          // 服务端频繁的去数据库查询用户名和密码并进行对比，判断用户名和密码正确与否，并作出相应提示
+          localStorage.setItem('token', data.token)
+          this.$router.push('/')
+        } else {
+          this.$message.error(meta.msg)
+        }
+      } catch (e) {
+        return false
+      }
     }
   }
 }
