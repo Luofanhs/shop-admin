@@ -17,7 +17,6 @@
 </template>
 
 <script>
-import axios from 'axios'
 export default {
   data () {
     return {
@@ -29,7 +28,7 @@ export default {
       rules: {
         username: [
           { required: true, message: '请输入用户名', trigger: 'change' },
-          { min: 3, max: 5, message: '长度在 3 到 5 个字符', trigger: 'change' }
+          { min: 3, max: 10, message: '长度在 3 到 10 个字符', trigger: 'change' }
         ],
         password: [
           { required: true, message: '请输入密码', trigger: 'change' },
@@ -54,13 +53,13 @@ export default {
         if (!isValid) return false
         // 成功，就发送ajax请求
 
-        axios.post('http://localhost:8888/api/private/v1/login', this.form).then(res => {
+        this.axios.post('http://localhost:8888/api/private/v1/login', this.form).then(res => {
           // form表单数据也是一个对象，直接this.form
           // 解构
           console.log(res.data)
-          const { status, msg } = res.data.meta
+          const { status, msg } = res.meta
           if (status === 200) {
-            const token = res.data.data.token
+            const token = res.data.token
             this.$message({
               message: '登陆成功',
               type: 'success'

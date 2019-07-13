@@ -8,10 +8,10 @@
   </el-breadcrumb>
   <!-- 搜索框 -->
   <div>
-    <el-input placeholder="请输入内容" v-model="query" class="input-with-select">
+    <el-input style="width:300px" placeholder="请输入内容" v-model="query" class="input-with-select">
       <el-button slot="append" icon="el-icon-search" @click="queryUser"></el-button>
     </el-input>
-    <el-button type="success" plain style="margin-left:20px">添加用户</el-button>
+    <el-button type="success" plain style="margin-left:20px" @click="showAddDialog">添加用户</el-button>
   </div>
   <!-- 表格 -->
   <el-table
@@ -38,7 +38,9 @@
         <el-switch
           v-model="row.mg_state"
           active-color="#13ce66"
-          inactive-color="#ff4949">
+          inactive-color="#ff4949"
+          @change="changeState(row)"
+          >
         </el-switch>
       </template>
 
@@ -46,7 +48,7 @@
     <el-table-column
       label="操作">
       <template v-slot:default="{row}">
-        <el-button type="primary" icon="el-icon-edit" plain size="small"></el-button>
+        <el-button type="primary" icon="el-icon-edit" @click="showEditDialog(row)" plain size="small"></el-button>
         <el-button type="danger" icon="el-icon-delete" @click="deleteUser(row.id)" plain size="small"></el-button>
         <el-button type="success" icon="el-icon-check" plain size="small">分配角色</el-button>
       </template>
@@ -68,11 +70,58 @@
       :total="total">
     </el-pagination>
   </div>
+
+  <!-- 点击添加显示对话框 -->
+  <el-dialog
+    title="添加用户"
+    :visible.sync="addDialogVisible"
+    width="40%"
+    >
+    <el-form ref="addForm" :model="addForm" :rules="rules" label-width="100px" status-icon>
+      <el-form-item label="用户名" prop="username">
+        <el-input placeholder="请输入用户名" v-model="addForm.username"></el-input>
+      </el-form-item>
+      <el-form-item label="密码" prop="password">
+        <el-input placeholder="请输入密码" v-model="addForm.password"></el-input>
+      </el-form-item>
+      <el-form-item label="邮箱" prop="email">
+        <el-input placeholder="请输入邮箱" v-model="addForm.email"></el-input>
+      </el-form-item>
+      <el-form-item label="手机" prop="mobile">
+        <el-input placeholder="请输入手机" v-model="addForm.mobile"></el-input>
+      </el-form-item>
+    </el-form>
+    <span slot="footer" class="dialog-footer">
+      <el-button @click="addDialogVisible = false">取 消</el-button>
+      <el-button type="primary" @click="addUser">确 定</el-button>
+    </span>
+  </el-dialog>
+  <!-- 修改用户 -->
+  <el-dialog
+    title="修改用户"
+    :visible.sync="editDialogVisible"
+    width="40%"
+    >
+    <el-form ref="editForm" :model="editForm" :rules="rules" label-width="100px" status-icon>
+      <el-form-item label="用户名" prop="username">
+        <el-tag type="info">{{editForm.username}}</el-tag>
+      </el-form-item>
+      <el-form-item label="邮箱" prop="email">
+        <el-input placeholder="请输入邮箱" v-model="editForm.email"></el-input>
+      </el-form-item>
+      <el-form-item label="手机" prop="mobile">
+        <el-input placeholder="请输入手机" v-model="editForm.mobile"></el-input>
+      </el-form-item>
+    </el-form>
+    <span slot="footer" class="dialog-footer">
+      <el-button @click="editDialogVisible = false">取 消</el-button>
+      <el-button type="primary" @click="editUser">确 定</el-button>
+    </span>
+  </el-dialog>
 </div>
 </template>
 
 <script>
-import axios from 'axios'
 export default {
   data () {
     return {
@@ -80,7 +129,38 @@ export default {
       tableData: [],
       pagenum: 1,
       pagesize: 2,
-      total: 0
+      total: 0,
+      // 添加用户的对话框，默认是隐藏
+      addDialogVisible: false,
+      addForm: {
+        username: '',
+        password: '',
+        email: '',
+        mobile: ''
+      },
+      rules: {
+        username: [
+          { required: true, message: '请输入用户名', trigger: 'blur' },
+          { min: 3, max: 10, message: '长度在 3 到 5 个字符', trigger: 'blur' }
+        ],
+        password: [
+          { required: true, message: '请输入密码', trigger: 'blur' },
+          { min: 6, max: 12, message: '长度在 6 到 12 个字符', trigger: 'blur' }
+        ],
+        email: [
+          { type: 'email', message: '请输入有效的邮箱', trigger: 'blur' }
+        ],
+        mobile: [
+          { pattern: /^1[3-9]\d{9}$/, message: '请输入有效的手机号', trigger: 'blur' }
+        ]
+      },
+      editDialogVisible: false,
+      editForm: {
+        id: '',
+        email: '',
+        mobile: '',
+        username: ''
+      }
     }
   },
   // 一进页面就渲染
@@ -90,19 +170,16 @@ export default {
   methods: {
     // 封装ajax
     getrequest () {
-      axios({
-        url: 'http://localhost:8888/api/private/v1/users',
+      this.axios({
+        url: 'users',
         params: {
           query: this.query,
           pagenum: this.pagenum,
           pagesize: this.pagesize
-        },
-        headers: {
-          Authorization: localStorage.getItem('token')
         }
       }).then(res => {
         console.log(res.data)
-        const { data, meta } = res.data
+        const { data, meta } = res
         if (meta.status === 200) {
           this.tableData = data.users
           this.total = data.total
@@ -129,21 +206,80 @@ export default {
       this.$confirm('确定删除吗?', '温馨提示', {
         type: 'warning'
       }).then(() => {
-        axios({
+        this.axios({
           method: 'delete',
-          url: `http://localhost:8888/api/private/v1/users/${id}`,
-          headers: {
-            Authorization: localStorage.getItem('token')
-          }
+          url: `users/${id}`
         }).then(res => {
           console.log(res.data)
-          const { meta } = res.data
+          const { meta } = res
           if (meta.status === 200) {
             this.$message.success('删除成功')
             if (this.tableData.length === 1 && this.pagenum > 1) {
               this.pagenum--
             }
             this.getrequest()
+          }
+        })
+      })
+    },
+    // 修改状态功能
+    changeState ({ id, mg_state: state }) {
+      this.axios.put(`users/${id}/state/${state}`).then(res => {
+        const { status, msg } = res.meta
+        if (status === 200) {
+          this.$message.success('修改成功')
+          this.getrequest()
+        } else {
+          this.$message.error(msg)
+        }
+      })
+    },
+    showAddDialog () {
+      this.addDialogVisible = true
+    },
+    // 添加功能
+    addUser () {
+      // validate 对内容进行校验
+      this.$refs.addForm.validate(valid => {
+        if (!valid) return false
+        this.axios.post('users', this.addForm).then(res => {
+          const { status } = res.meta
+          if (status === 201) {
+            // 提示消息
+            this.$message.success('添加成功')
+            // 重置表单
+            this.$refs.addForm.resetFields()
+            // 隐藏对话框
+            this.addDialogVisible = false
+            // 重新渲染
+            this.total++ // 总个数++
+            this.pagenum = Math.ceil(this.total / this.pagesize)
+            this.getrequest()
+          } else {
+            this.$message.error('添加失败')
+          }
+        })
+      })
+    },
+    // 修改框显示
+    showEditDialog (user) {
+      this.editDialogVisible = true
+      this.editForm = { ...user }
+    },
+    // 开始修改内容
+    editUser () {
+      this.$refs.editForm.validate(valid => {
+        if (!valid) return false
+        const { id, email, mobile } = this.editForm
+        this.axios.put(`users/${id}`, { email, mobile }).then(res => {
+          const { msg, status } = res.meta
+          if (status === 200) {
+            this.$message.success('修改成功')
+            // this.$refs.editForm.resetFields()
+            this.editDialogVisible = false
+            this.getrequest()
+          } else {
+            this.$message.error(msg)
           }
         })
       })
@@ -159,8 +295,5 @@ export default {
   padding-left: 10px;
   font-size: 16px;
   background-color: #d4dae0;
-}
-.el-input{
-  width: 300px;
 }
 </style>
